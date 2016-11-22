@@ -2,8 +2,6 @@
 
 > [relayjs / relay-starter-kit](https://github.com/relayjs/relay-starter-kit)
 
-[TOC]
-
 ## Developing
 
 Any changes you make to files in the `js/` directory will cause the server to
@@ -98,4 +96,3 @@ mutation RemoveAll($_: RemoveAllNotesInput!) {
   }
 }
 ```
-
