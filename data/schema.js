@@ -1,143 +1,259 @@
-/**
- *  Copyright (c) 2015, Facebook, Inc.
- *  All rights reserved.
- *
- *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant
- *  of patent rights can be found in the PATENTS file in the same directory.
- */
-
 import {
-  GraphQLBoolean,
-  GraphQLFloat,
-  GraphQLID,
-  GraphQLInt,
-  GraphQLList,
-  GraphQLNonNull,
-  GraphQLObjectType,
-  GraphQLSchema,
-  GraphQLString,
+    GraphQLID,
+    GraphQLInt,
+    GraphQLNonNull,
+    GraphQLEnumType,
+    GraphQLObjectType,
+    GraphQLSchema,
+    GraphQLString,
 } from 'graphql';
 
 import {
-  connectionArgs,
-  connectionDefinitions,
-  connectionFromArray,
-  fromGlobalId,
-  globalIdField,
-  mutationWithClientMutationId,
-  nodeDefinitions,
+    connectionArgs,
+    connectionDefinitions,
+    connectionFromArray,
+    fromGlobalId,
+    globalIdField,
+    mutationWithClientMutationId,
+    nodeDefinitions,
+    cursorForObjectInConnection,
 } from 'graphql-relay';
 
 import {
-  // Import methods that your schema can use to interact with your database
-  User,
-  Widget,
-  getUser,
-  getViewer,
-  getWidget,
-  getWidgets,
+    // Import methods that your schema can use to interact with your database
+    User,
+    Note,
+    getNote,
+    getNotes,
+    getNotesByUserId,
+    addNote,
+    removeNote,
+    updateNote,
+    removeAllNotes,
+    getUser,
+    getViewer,
 } from './database';
 
-/**
- * We get the node interface and field from the Relay library.
- *
- * The first method defines the way we resolve an ID to its object.
- * The second defines the way we resolve an object to its GraphQL type.
- */
-var {nodeInterface, nodeField} = nodeDefinitions(
-  (globalId) => {
-    var {type, id} = fromGlobalId(globalId);
-    if (type === 'User') {
-      return getUser(id);
-    } else if (type === 'Widget') {
-      return getWidget(id);
-    } else {
-      return null;
+var { nodeInterface, nodeField } = nodeDefinitions(
+    (globalId) => {
+        var { type, id } = fromGlobalId(globalId);
+        
+        switch (type) {
+            case 'User':
+                return getUser(id);
+            
+            case 'Note':
+                return getNote(id);
+            
+            default:
+                return null;
+        }
+    },
+    (obj) => {
+        if (obj instanceof User) {
+            return UserType;
+        }
+        
+        if (obj instanceof Note) {
+            return NoteType;
+        }
+        
+        return null;
     }
-  },
-  (obj) => {
-    if (obj instanceof User) {
-      return userType;
-    } else if (obj instanceof Widget)  {
-      return widgetType;
-    } else {
-      return null;
-    }
-  }
 );
 
-/**
- * Define your own types here
- */
+const NoteStatusEnumType = new GraphQLEnumType({
+    name: 'NoteStatus',
+    description: '',
+    values: {
+        ACTIVE: {
+            value: 'active',
+            description: 'An active note'
+        },
+        DELETED: {
+            value: 'deleted',
+            description: 'Deleted note'
+        },
+    }
+});
 
-var userType = new GraphQLObjectType({
-  name: 'User',
-  description: 'A person who uses our app',
-  fields: () => ({
-    id: globalIdField('User'),
-    widgets: {
-      type: widgetConnection,
-      description: 'A person\'s collection of widgets',
-      args: connectionArgs,
-      resolve: (_, args) => connectionFromArray(getWidgets(), args),
+const NoteType = new GraphQLObjectType({
+    name: 'Note',
+    description: 'User note to self',
+    fields: () => ({
+        id: globalIdField('Note'),
+        text: {
+            type: GraphQLString,
+            resolve: obj => obj.text
+        },
+        status: {
+            type: GraphQLString,
+            resolve: obj => obj.status
+        },
+        createdOn: {
+            type: GraphQLString,
+            resolve: obj => `${obj.createdTimeStamp}`
+        },
+        updatedOn: {
+            type: GraphQLString,
+            resolve: obj => `${obj.updatedTimeStamp}`
+        }
+    }),
+    interfaces: [nodeInterface],
+});
+
+const {
+    connectionType: NotesConnection,
+    edgeType: NoteEdge
+} = connectionDefinitions({
+    name: 'Note',
+    nodeType: NoteType
+});
+
+const UserType = new GraphQLObjectType({
+    name: 'User',
+    description: 'A person who uses our app',
+    fields: () => ({
+        id: globalIdField('User'),
+        name: {
+            type: GraphQLString,
+            description: 'Name of the user',
+            resolve: (obj) => obj.name
+        },
+        notes: {
+            type: NotesConnection,
+            description: 'A person\'s collection of notes',
+            args: {
+                status: {
+                    type: GraphQLString,
+                    defaultValue: 'any',
+                },
+                ...connectionArgs
+            },
+            resolve: (_, { status, ...args }) => connectionFromArray(getNotes(status), args),
+        },
+        totalCount: {
+            type: GraphQLInt,
+            resolve: () => getNotes().length
+        },
+        deletedCount: {
+            type: GraphQLInt,
+            resolve: () => getNotes(Note.STATUS.DELETED).length
+        },
+        avatarImageUrl: {
+            type: GraphQLString,
+            resolve: obj => obj.avatarImageUrl
+        }
+    }),
+    interfaces: [nodeInterface],
+});
+
+const Root = new GraphQLObjectType({
+    name: 'Root',
+    fields: {
+        viewer: {
+            type: UserType,
+            resolve: () => getViewer(),
+        },
+        node: nodeField,
     },
-  }),
-  interfaces: [nodeInterface],
 });
 
-var widgetType = new GraphQLObjectType({
-  name: 'Widget',
-  description: 'A shiny widget',
-  fields: () => ({
-    id: globalIdField('Widget'),
-    name: {
-      type: GraphQLString,
-      description: 'The name of the widget',
+const AddNoteMutation = mutationWithClientMutationId({
+    name: 'AddNote',
+    inputFields: {
+        text: { type: new GraphQLNonNull(GraphQLString) },
     },
-  }),
-  interfaces: [nodeInterface],
-});
-
-/**
- * Define your own connection types here
- */
-var {connectionType: widgetConnection} =
-  connectionDefinitions({name: 'Widget', nodeType: widgetType});
-
-/**
- * This is the type that will be the root of our query,
- * and the entry point into our schema.
- */
-var queryType = new GraphQLObjectType({
-  name: 'Query',
-  fields: () => ({
-    node: nodeField,
-    // Add your own root fields here
-    viewer: {
-      type: userType,
-      resolve: () => getViewer(),
+    outputFields: {
+        noteEdge: {
+            type: NoteEdge,
+            resolve: ({ localNoteId }) => {
+                const note = getNote(localNoteId);
+    
+                return {
+                    cursor: cursorForObjectInConnection(getNotes(), note),
+                    node: note,
+                };
+            },
+        },
+        viewer: {
+            type: UserType,
+            resolve: () => getViewer(),
+        },
     },
-  }),
+    mutateAndGetPayload: ({ text }) => {
+        const localNoteId = addNote(text);
+        return { localNoteId };
+    },
 });
 
-/**
- * This is the type that will be the root of our mutations,
- * and the entry point into performing writes in our schema.
- */
-var mutationType = new GraphQLObjectType({
-  name: 'Mutation',
-  fields: () => ({
-    // Add your own mutations here
-  })
+const RemoveNoteMutation = mutationWithClientMutationId({
+    name: 'RemoveNote',
+    inputFields: {
+        id: { type: new GraphQLNonNull(GraphQLID) },
+    },
+    outputFields: {
+        deletedNoteId: {
+            type: GraphQLID,
+            resolve: ({ id }) => id,
+        },
+        viewer: {
+            type: UserType,
+            resolve: () => getViewer(),
+        },
+    },
+    mutateAndGetPayload: ({ id }) => {
+        const localNoteId = fromGlobalId(id).id;
+        removeNote(localNoteId);
+        return { id };
+    },
 });
 
-/**
- * Finally, we construct our schema (whose starting query type is the query
- * type we defined above) and export it.
- */
-export var Schema = new GraphQLSchema({
-  query: queryType,
-  // Uncomment the following after adding some mutation fields:
-  // mutation: mutationType
+const UpdateNoteMutation = mutationWithClientMutationId({
+    name: 'UpdateNote',
+    inputFields: {
+        id: { type: new GraphQLNonNull(GraphQLID) },
+        text: { type: new GraphQLNonNull(GraphQLString) },
+    },
+    outputFields: {
+        note: {
+            type: NoteType,
+            resolve: ({ localNoteId }) => getNote(localNoteId),
+        },
+    },
+    mutateAndGetPayload: ({ id, text }) => {
+        const localNoteId = fromGlobalId(id).id;
+        updateNote(localNoteId, text);
+        return { localNoteId };
+    },
+});
+
+const RemoveAllNotesMutation = mutationWithClientMutationId({
+    name: 'RemoveAllNotes',
+    inputFields: {},
+    outputFields: {
+        viewer: {
+            type: UserType,
+            resolve: () => getViewer(),
+        },
+    },
+    mutateAndGetPayload: () => {
+        removeAllNotes();
+        return { id: -1 };
+    }
+});
+
+const Mutation = new GraphQLObjectType({
+    name: 'Mutation',
+    fields: () => ({
+        addNote: AddNoteMutation,
+        removeNote: RemoveNoteMutation,
+        updateNote: UpdateNoteMutation,
+        removeAllNotes: RemoveAllNotesMutation,
+    })
+});
+
+export const Schema = new GraphQLSchema({
+    query: Root,
+    mutation: Mutation,
 });

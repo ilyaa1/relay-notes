@@ -1,0 +1,85 @@
+.note {
+  display: flex;
+  flex-flow: row nowrap;
+  margin: 10px 0;
+  justify-content: space-between;
+
+  img {
+    align-self: flex-start;
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    padding: 5px;
+    margin-right: 10px;
+  }
+}
+
+.noteContainer {
+  align-self: stretch;
+  flex: 1 0 auto;
+  display: flex;
+  flex-flow: column nowrap;
+}
+
+.noteContent {
+  display: flex;
+  flex-flow: row nowrap;
+  align-content: center;
+  justify-content: space-between;
+  line-height: 30px;
+
+  padding: 5px;
+  border: 1px solid silver;
+  border-radius: 3px;
+  background: silver;
+
+  //> * { display: inline-block; }
+
+
+
+  label {
+    margin: 0 10px;
+    align-self: stretch;
+    flex: 1 1 auto;
+  }
+}
+
+.noteCommands {
+  width: 50px;
+  align-self: flex-end;
+  flex: 0 0 auto;
+
+  display: inline-flex;
+  flex-flow: row nowrap;
+  justify-content: space-around;
+  align-items: flex-start;
+  align-content: flex-start;
+  vertical-align: top;
+  > div {
+    flex: 0 0 auto;
+    cursor: pointer;
+    //display: inline-block;
+
+    //> i { display: inline-block; }
+  }
+
+  visibility: hidden;
+}
+
+
+.noteContent:hover .noteCommands {
+  visibility: visible;
+}
+
+.noteStatus {
+  display: flex;
+  flex-flow: row-reverse nowrap;
+
+  font-weight: 200;
+  font-size: 0.7em;
+  font-style: italic;
+
+  span {
+    margin-left: 10px;
+  }
+}

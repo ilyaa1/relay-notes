@@ -1,0 +1,12 @@
+.noteList {
+  flex: 1 1 auto;
+  align-self: stretch;
+
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: flex-end;
+
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}

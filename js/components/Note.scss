@@ -1,0 +1,30 @@
+.note {
+  //display: flex;
+  //flex-direction: column;
+  display: block;
+  padding: 0 10px;
+  align-items: center;
+
+  //line-height: 30px;
+
+  /* div { display: inline-block; } */
+
+  /*.avatar {
+    align-self: flex-start;
+    flex: 0 0 40px;
+  }
+
+  .content {
+    align-self: stretch;
+    flex: 1 1 auto;
+  }
+
+  .commands {
+    align-self: flex-end;
+    flex: 0 1 50px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 0 10px;
+  }*/
+}
